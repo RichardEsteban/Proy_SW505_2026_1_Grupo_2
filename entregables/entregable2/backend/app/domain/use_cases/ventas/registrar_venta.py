@@ -39,8 +39,8 @@ class RegistrarVentaUseCase:
             if not producto.tiene_stock_suficiente(item.cantidad):
                 raise StockInsuficiente(
                     producto_id=item.producto_id,
-                    stock_disponible=producto.stock_actual,
-                    cantidad_pedida=item.cantidad
+                    disponible=producto.stock_actual,
+                    solicitado=item.cantidad
                 )
 
         # Calcular totales con IGV
