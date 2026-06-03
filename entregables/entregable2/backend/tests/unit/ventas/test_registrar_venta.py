@@ -56,3 +56,30 @@ class TestRegistrarVenta:
 
         producto_actualizado = self.fake_repo_producto.obtener_por_id(1)
         assert producto_actualizado.stock_actual == 7  # 10 - 3
+
+    # PU-V05
+    def test_venta_metodo_pago_invalido(self):
+        items = [ItemVenta(producto_id=1, cantidad=1, precio_unitario=Decimal('50.00'))]
+
+        with pytest.raises(ValueError):
+            self.use_case.ejecutar(
+                vendedor_id=1,
+                sucursal_id=1,
+                items=items,
+                metodo_pago='bitcoin'
+            )
+
+    # Test extra 
+    def test_venta_exitosa_se_persiste(self):
+        items = [ItemVenta(producto_id=1, cantidad=2, precio_unitario=Decimal('50.00'))]
+
+        venta = self.use_case.ejecutar(
+            vendedor_id=1,
+            sucursal_id=1,
+            items=items,
+            metodo_pago='yape'
+        )
+
+        assert venta.id is not None
+        assert venta.total == Decimal('118.00')
+        assert venta.igv == Decimal('18.00')
