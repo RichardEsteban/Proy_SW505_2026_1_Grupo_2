@@ -1,0 +1,1 @@
+class EstadoInvalidoError(Exception): pass

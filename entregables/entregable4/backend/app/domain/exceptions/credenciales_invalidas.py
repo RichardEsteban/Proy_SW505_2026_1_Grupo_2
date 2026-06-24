@@ -1,0 +1,1 @@
+class CredencialesInvalidasError(Exception): pass
