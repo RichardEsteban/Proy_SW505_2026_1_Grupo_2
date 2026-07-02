@@ -99,7 +99,7 @@ python run.py
 El proyecto está pensado para ser una aplicación de demostración funcional para MYPE, con un backend modular y un frontend escalable. El uso de Docker facilita su despliegue y prueba sin necesidad de instalar todas las dependencias manualmente.
 
 Integrantes:
-Dionicio Leandro Crhistian Andres 
-Esteban Rojas Richard Daniel
-Marquina Chahuayo Julio Alberto 
-Reyes Venturo Angelo Reyes 
+1. Dionicio Leandro Crhistian Andres 
+2. Esteban Rojas Richard Daniel
+3. Marquina Chahuayo Julio Alberto
+4. Reyes Venturo Angelo Reyes 
