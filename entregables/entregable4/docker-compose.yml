@@ -26,6 +26,7 @@ services:
       dockerfile: Dockerfile
     container_name: sistemamype_backend
     restart: always
+    # Variables reales del backend para ejecución con Docker.
     env_file:
       - .env.docker
     ports:
@@ -36,10 +37,26 @@ services:
       db:
         condition: service_healthy
 
-    # 👇 ESTA ES LA PARTE IMPORTANTE
     command: >
-      sh -c "python -m app.db.init_db &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sistemamype_frontend
+    restart: always
+    # Variables del frontend, incluido el modo de red local.
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:
