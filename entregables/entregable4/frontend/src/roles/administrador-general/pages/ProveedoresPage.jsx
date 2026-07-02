@@ -1,0 +1,323 @@
+import { useEffect, useMemo, useState } from 'react'
+import { actualizarProveedor, crearProveedor, listarProveedores } from '@/shared/api/proveedorApi'
+import { useAuth } from '@/shared/auth/AuthContext'
+import Alert from '@/shared/components/Alert'
+import Badge from '@/shared/components/Badge'
+import Button from '@/shared/components/Button'
+import Card from '@/shared/components/Card'
+import Input from '@/shared/components/Input'
+import Loader from '@/shared/components/Loader'
+import Modal from '@/shared/components/Modal'
+import PageHeader from '@/shared/components/PageHeader'
+import Select from '@/shared/components/Select'
+import Table from '@/shared/components/Table'
+import Textarea from '@/shared/components/Textarea'
+import { canManageCatalog, formatBooleanStatus, getApiErrorMessage } from '@/shared/utils/catalogo'
+
+const emptyForm = {
+  identificacionFiscal: '',
+  razonSocial: '',
+  contactoNombre: '',
+  telefono: '',
+  correoElectronico: '',
+  direccion: '',
+  isActivo: true
+}
+
+function nullableTrim(value) {
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+function preparePayload(form, isEdit) {
+  const payload = {
+    identificacionFiscal: form.identificacionFiscal.trim(),
+    razonSocial: form.razonSocial.trim(),
+    contactoNombre: nullableTrim(form.contactoNombre),
+    telefono: nullableTrim(form.telefono),
+    correoElectronico: nullableTrim(form.correoElectronico),
+    direccion: nullableTrim(form.direccion)
+  }
+
+  if (isEdit) payload.isActivo = form.isActivo
+
+  return payload
+}
+
+export default function ProveedoresPage() {
+  const { usuario } = useAuth()
+  const canManage = canManageCatalog(usuario?.rol)
+  const [proveedores, setProveedores] = useState([])
+  const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+
+  async function loadProveedores() {
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await listarProveedores({ incluirInactivos: showInactive })
+      setProveedores(data)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudieron cargar los proveedores'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadProveedores()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showInactive])
+
+  const filteredProveedores = useMemo(() => {
+    const term = search.trim().toLowerCase()
+
+    if (!term) return proveedores
+
+    return proveedores.filter((proveedor) => (
+      proveedor.razonSocial.toLowerCase().includes(term) ||
+      proveedor.identificacionFiscal.toLowerCase().includes(term) ||
+      (proveedor.contactoNombre || '').toLowerCase().includes(term) ||
+      String(proveedor.idProveedor).includes(term)
+    ))
+  }, [proveedores, search])
+
+  function openCreateModal() {
+    setEditing(null)
+    setForm(emptyForm)
+    setError('')
+    setSuccess('')
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(proveedor) {
+    setEditing(proveedor)
+    setForm({
+      identificacionFiscal: proveedor.identificacionFiscal,
+      razonSocial: proveedor.razonSocial,
+      contactoNombre: proveedor.contactoNombre || '',
+      telefono: proveedor.telefono || '',
+      correoElectronico: proveedor.correoElectronico || '',
+      direccion: proveedor.direccion || '',
+      isActivo: proveedor.isActivo
+    })
+    setError('')
+    setSuccess('')
+    setIsModalOpen(true)
+  }
+
+  function handleChange(event) {
+    const { name, value } = event.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const payload = preparePayload(form, Boolean(editing))
+
+      if (editing) {
+        await actualizarProveedor(editing.idProveedor, payload)
+        setSuccess('Proveedor actualizado correctamente')
+      } else {
+        await crearProveedor(payload)
+        setSuccess('Proveedor creado correctamente')
+      }
+
+      setIsModalOpen(false)
+      await loadProveedores()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo guardar el proveedor'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function toggleStatus(proveedor) {
+    setSaving(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      await actualizarProveedor(proveedor.idProveedor, { isActivo: !proveedor.isActivo })
+      setSuccess(`Proveedor ${!proveedor.isActivo ? 'activado' : 'desactivado'} correctamente`)
+      await loadProveedores()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo cambiar el estado del proveedor'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const columns = [
+    { key: 'idProveedor', header: 'ID', render: (row) => <span className="font-semibold text-slate-900">#{row.idProveedor}</span> },
+    { key: 'identificacionFiscal', header: 'RUC/DNI' },
+    { key: 'razonSocial', header: 'Razón social', render: (row) => <span className="font-semibold text-slate-900">{row.razonSocial}</span> },
+    { key: 'contactoNombre', header: 'Contacto', render: (row) => row.contactoNombre || <span className="text-slate-400">Sin contacto</span> },
+    { key: 'telefono', header: 'Teléfono', render: (row) => row.telefono || <span className="text-slate-400">-</span> },
+    {
+      key: 'isActivo',
+      header: 'Estado',
+      render: (row) => <Badge tone={row.isActivo ? 'green' : 'red'}>{formatBooleanStatus(row.isActivo)}</Badge>
+    },
+    {
+      key: 'acciones',
+      header: 'Acciones',
+      render: (row) => (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" className="px-3 py-2" onClick={() => openEditModal(row)}>
+            Editar
+          </Button>
+          <Button
+            type="button"
+            variant={row.isActivo ? 'danger' : 'secondary'}
+            className="px-3 py-2"
+            disabled={saving}
+            onClick={() => toggleStatus(row)}
+          >
+            {row.isActivo ? 'Desactivar' : 'Activar'}
+          </Button>
+        </div>
+      )
+    }
+  ]
+
+  if (!canManage) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Catálogo"
+          title="Proveedores"
+          description="Este módulo solo está disponible para administradores y supervisores de almacén."
+        />
+        <Alert tone="warning">No tienes permisos para gestionar proveedores.</Alert>
+      </div>
+    )
+  }
+
+  if (loading) return <Loader message="Cargando proveedores..." />
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Catálogo"
+        title="Proveedores"
+        description="Administra proveedores externos usados luego en órdenes de compra."
+        actions={<Button onClick={openCreateModal}>Nuevo proveedor</Button>}
+      />
+
+      {error && <Alert tone="error">{error}</Alert>}
+      {success && <Alert tone="success">{success}</Alert>}
+
+      <Card>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Input
+            label="Buscar proveedor"
+            placeholder="Razón social, identificación, contacto o ID"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="md:w-96"
+          />
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(event) => setShowInactive(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Mostrar inactivos
+          </label>
+        </div>
+      </Card>
+
+      <Table
+        columns={columns}
+        data={filteredProveedores}
+        keyField="idProveedor"
+        emptyMessage="No hay proveedores registrados."
+      />
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editing ? 'Editar proveedor' : 'Nuevo proveedor'}
+        description="Completa los datos comerciales del proveedor."
+        footer={(
+          <>
+            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+            <Button type="submit" form="proveedor-form" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+          </>
+        )}
+      >
+        <form id="proveedor-form" className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <Input
+            label="Identificación fiscal"
+            name="identificacionFiscal"
+            value={form.identificacionFiscal}
+            onChange={handleChange}
+            minLength={8}
+            maxLength={11}
+            required
+          />
+          <Input
+            label="Razón social"
+            name="razonSocial"
+            value={form.razonSocial}
+            onChange={handleChange}
+            maxLength={150}
+            required
+          />
+          <Input
+            label="Contacto"
+            name="contactoNombre"
+            value={form.contactoNombre}
+            onChange={handleChange}
+            maxLength={100}
+          />
+          <Input
+            label="Teléfono"
+            name="telefono"
+            value={form.telefono}
+            onChange={handleChange}
+            maxLength={20}
+          />
+          <Input
+            label="Correo electrónico"
+            name="correoElectronico"
+            type="email"
+            value={form.correoElectronico}
+            onChange={handleChange}
+            maxLength={150}
+          />
+          {editing && (
+            <Select label="Estado" name="isActivo" value={String(form.isActivo)} onChange={(event) => setForm((prev) => ({ ...prev, isActivo: event.target.value === 'true' }))}>
+              <option value="true">Activo</option>
+              <option value="false">Inactivo</option>
+            </Select>
+          )}
+          <div className="md:col-span-2">
+            <Textarea
+              label="Dirección"
+              name="direccion"
+              value={form.direccion}
+              onChange={handleChange}
+              maxLength={255}
+            />
+          </div>
+        </form>
+      </Modal>
+    </div>
+  )
+}
