@@ -1,11 +1,23 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
 
 
-class ProveedorCreate(BaseModel):
-    idEmpresa: int
-    identificacionFiscal: str
-    razonSocial: str
+class ProveedorCreateRequest(BaseModel):
+    identificacionFiscal: str = Field(min_length=8, max_length=11)
+    razonSocial: str = Field(min_length=2, max_length=150)
+    contactoNombre: str | None = Field(default=None, max_length=100)
+    telefono: str | None = Field(default=None, max_length=20)
+    correoElectronico: EmailStr | None = None
+    direccion: str | None = Field(default=None, max_length=255)
+
+
+class ProveedorUpdateRequest(BaseModel):
+    identificacionFiscal: str | None = Field(default=None, min_length=8, max_length=11)
+    razonSocial: str | None = Field(default=None, min_length=2, max_length=150)
+    contactoNombre: str | None = Field(default=None, max_length=100)
+    telefono: str | None = Field(default=None, max_length=20)
+    correoElectronico: EmailStr | None = None
+    direccion: str | None = Field(default=None, max_length=255)
+    isActivo: bool | None = None
 
 
 class ProveedorResponse(BaseModel):
@@ -13,11 +25,8 @@ class ProveedorResponse(BaseModel):
     idEmpresa: int
     identificacionFiscal: str
     razonSocial: str
-    contactoNombre: Optional[str]
-    telefono: Optional[str]
-    correoElectronico: Optional[EmailStr]
-    direccion: Optional[str]
+    contactoNombre: str | None
+    telefono: str | None
+    correoElectronico: str | None
+    direccion: str | None
     isActivo: bool
-
-    class Config:
-        from_attributes = True

@@ -1,33 +1,32 @@
-from pydantic import BaseModel, EmailStr
-from datetime import datetime
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
 
 
-class UsuarioBase(BaseModel):
+class UsuarioCreateRequest(BaseModel):
     correoElectronico: EmailStr
-
-
-class UsuarioCreate(UsuarioBase):
-    contrasena: str
+    contrasenaTemporal: str = Field(min_length=8, max_length=72)
     idRol: int
     idUbicacion: int
 
 
-class UsuarioUpdate(BaseModel):
-    correoElectronico: Optional[EmailStr] = None
-    idRol: Optional[int] = None
-    idUbicacion: Optional[int] = None
-    isActivo: Optional[bool] = None
+class UsuarioUpdateRequest(BaseModel):
+    correoElectronico: EmailStr | None = None
+    idRol: int | None = None
+    idUbicacion: int | None = None
+    isActivo: bool | None = None
+
+
+class CambiarContrasenaRequest(BaseModel):
+    contrasenaActual: str = Field(min_length=1, max_length=72)
+    contrasenaNueva: str = Field(min_length=8, max_length=72)
 
 
 class UsuarioResponse(BaseModel):
     idUsuario: int
-    correoElectronico: EmailStr
+    correoElectronico: str
     idRol: int
+    rol: str
     idUbicacion: int
+    ubicacion: str
+    tipoUbicacion: str
     isActivo: bool
     isContrasenaTemporal: bool
-    fechaCreacion: datetime
-
-    class Config:
-        from_attributes = True

@@ -1,19 +1,20 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
 
 
-class CategoriaCreate(BaseModel):
-    idEmpresa: int
-    nombreCategoria: str
-    descripcion: Optional[str] = None
+class CategoriaCreateRequest(BaseModel):
+    nombreCategoria: str = Field(min_length=2, max_length=100)
+    descripcion: str | None = Field(default=None, max_length=200)
+
+
+class CategoriaUpdateRequest(BaseModel):
+    nombreCategoria: str | None = Field(default=None, min_length=2, max_length=100)
+    descripcion: str | None = Field(default=None, max_length=200)
+    isActivo: bool | None = None
 
 
 class CategoriaResponse(BaseModel):
     idCategoria: int
     idEmpresa: int
     nombreCategoria: str
-    descripcion: Optional[str]
+    descripcion: str | None
     isActivo: bool
-
-    class Config:
-        from_attributes = True

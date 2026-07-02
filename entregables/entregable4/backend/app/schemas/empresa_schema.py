@@ -1,16 +1,19 @@
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
 
 
 class EmpresaResponse(BaseModel):
     idEmpresa: int
     nombreEmpresa: str
     isInicializado: bool
-    fechaInicializacion: Optional[datetime]
     timer_revision_minutos: int
-    igv_porcentaje: float
+    igv_porcentaje: Decimal
     moneda: str
 
-    class Config:
-        from_attributes = True
+
+class EmpresaUpdateRequest(BaseModel):
+    nombreEmpresa: str | None = Field(default=None, min_length=2, max_length=150)
+    timer_revision_minutos: int | None = Field(default=None, ge=1, le=1440)
+    igv_porcentaje: Decimal | None = Field(default=None, ge=0, le=100)
+    moneda: str | None = Field(default=None, min_length=3, max_length=3)
