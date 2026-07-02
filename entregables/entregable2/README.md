@@ -1,1 +1,1 @@
-Folder de los documentos del Plan de implementación y despliegue
+Folder de los documentos del Plan de despliegue
