@@ -1,0 +1,24 @@
+class Roles:
+    ADMIN = "ADMIN"
+    VENDEDOR = "VENDEDOR"
+    SUPERVISOR_SUCURSAL = "SUPERVISOR_SUCURSAL"
+    SUPERVISOR_ALMACEN = "SUPERVISOR_ALMACEN"
+
+
+ROLES_BASE = [
+    Roles.ADMIN,
+    Roles.VENDEDOR,
+    Roles.SUPERVISOR_SUCURSAL,
+    Roles.SUPERVISOR_ALMACEN,
+]
+
+
+class TiposUbicacion:
+    ALMACEN = "ALMACEN"
+    SUCURSAL = "SUCURSAL"
+
+
+TIPOS_UBICACION = [
+    TiposUbicacion.ALMACEN,
+    TiposUbicacion.SUCURSAL,
+]
