@@ -2,7 +2,7 @@
 
 ## Descripción general
 
-Este proyecto es una solución de punto de venta y gestión de inventarios diseñada para pequeñas y medianas empresas (MYPE) del sector comercial. Combina una API backend en Python con FastAPI y una interfaz frontend en React + Vite, además de una base de datos MySQL. El objetivo es facilitar el control de productos, ventas, proveedores, reposiciones, órdenes de compra y alertas de stock.
+Codex Venta es una solución de punto de venta y gestión de inventarios diseñada para pequeñas y medianas empresas (MYPE) del sector comercial. Combina una API backend en Python con FastAPI y una interfaz frontend en React + Vite, además de una base de datos MySQL. El objetivo es facilitar el control de productos, ventas, proveedores, reposiciones, órdenes de compra y alertas de stock.
 
 ## ¿A quién va dirigido?
 
@@ -98,6 +98,8 @@ python run.py
 
 El proyecto está pensado para ser una aplicación de demostración funcional para MYPE, con un backend modular y un frontend escalable. El uso de Docker facilita su despliegue y prueba sin necesidad de instalar todas las dependencias manualmente.
 
----
-
-Si subes este repositorio a GitHub, este README sirve como una guía clara del propósito del proyecto, su alcance y cómo ejecutarlo localmente.
+Integrantes:
+Dionicio Leandro Crhistian Andres 
+Esteban Rojas Richard Daniel
+Marquina Chahuayo Julio Alberto 
+Reyes Venturo Angelo Reyes 
