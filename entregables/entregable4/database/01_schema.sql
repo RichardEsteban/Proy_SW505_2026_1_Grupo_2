@@ -1,35 +1,24 @@
 -- ============================================================================
--- SISTEMA DE INVENTARIO Y VENTAS (POS) — ESQUEMA sistemamype
--- Versión: 2.0 — Piloto
--- Cambios vs attachment original:
---   * Empresa: agregada columna timer_revision_minutos (Plan A pregunta 1)
---   * SolicitudReposicion: enum actualizado a 7 estados (Plan A pregunta 1)
---   * Resto del esquema intacto
+-- SISTEMA DE INVENTARIO Y VENTAS — ESQUEMA sistemamype
 -- ============================================================================
 
 CREATE DATABASE IF NOT EXISTS sistemamype;
 USE sistemamype;
 
--- Otorgar permisos al usuario inventario
 GRANT ALL PRIVILEGES ON sistemamype.* TO 'inventario'@'%';
 FLUSH PRIVILEGES;
 
--- ============================================================================
--- MÓDULO 1: CONFIGURACIÓN DE EMPRESA Y UBICACIONES
--- ============================================================================
-
-CREATE TABLE empresa (
+CREATE TABLE IF NOT EXISTS empresa (
     idEmpresa INT AUTO_INCREMENT PRIMARY KEY,
     nombreEmpresa VARCHAR(150) NOT NULL,
     isInicializado BOOLEAN NOT NULL DEFAULT FALSE,
     fechaInicializacion DATETIME NULL,
-    -- NUEVO: timer configurable por admin para auto-transición ENVIADO→EN_REVISION
     timer_revision_minutos INT NOT NULL DEFAULT 60,
     igv_porcentaje DECIMAL(5,2) NOT NULL DEFAULT 18.00,
     moneda CHAR(3) NOT NULL DEFAULT 'PEN'
 ) ENGINE=InnoDB;
 
-CREATE TABLE ubicacion (
+CREATE TABLE IF NOT EXISTS ubicacion (
     idUbicacion INT AUTO_INCREMENT PRIMARY KEY,
     idEmpresa INT NOT NULL,
     nombreUbicacion VARCHAR(150) NOT NULL,
@@ -39,16 +28,12 @@ CREATE TABLE ubicacion (
     FOREIGN KEY (idEmpresa) REFERENCES empresa(idEmpresa)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 2: USUARIOS, ROLES Y SEGURIDAD
--- ============================================================================
-
-CREATE TABLE rol (
+CREATE TABLE IF NOT EXISTS rol (
     idRol INT AUTO_INCREMENT PRIMARY KEY,
     nombreRol VARCHAR(50) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
-CREATE TABLE usuario (
+CREATE TABLE IF NOT EXISTS usuario (
     idUsuario INT AUTO_INCREMENT PRIMARY KEY,
     idUbicacion INT NOT NULL,
     idRol INT NOT NULL,
@@ -61,20 +46,32 @@ CREATE TABLE usuario (
     FOREIGN KEY (idRol) REFERENCES rol(idRol)
 ) ENGINE=InnoDB;
 
-CREATE TABLE codigoverificacion (
+CREATE TABLE IF NOT EXISTS codigoverificacion (
     idCodigo INT AUTO_INCREMENT PRIMARY KEY,
     idUsuario INT NOT NULL,
-    codigo VARCHAR(6) NOT NULL,
+    codigoHash VARCHAR(255) NULL,
     isUsado BOOLEAN NOT NULL DEFAULT FALSE,
+    intentos INT NOT NULL DEFAULT 0,
+    fechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fechaExpiracion DATETIME NOT NULL,
+    fechaUso DATETIME NULL,
     FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 3: CATÁLOGO, PROVEEDORES E INVENTARIO
--- ============================================================================
 
-CREATE TABLE proveedor (
+CREATE TABLE IF NOT EXISTS sesionusuario (
+    idSesion INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT NOT NULL,
+    tokenId VARCHAR(80) NOT NULL UNIQUE,
+    isActiva BOOLEAN NOT NULL DEFAULT TRUE,
+    fechaInicio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fechaUltimaActividad DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fechaCierre DATETIME NULL,
+    motivoCierre VARCHAR(80) NULL,
+    FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS proveedor (
     idProveedor INT AUTO_INCREMENT PRIMARY KEY,
     idEmpresa INT NOT NULL,
     identificacionFiscal VARCHAR(11) NOT NULL UNIQUE,
@@ -87,18 +84,29 @@ CREATE TABLE proveedor (
     FOREIGN KEY (idEmpresa) REFERENCES empresa(idEmpresa)
 ) ENGINE=InnoDB;
 
-CREATE TABLE producto (
+CREATE TABLE IF NOT EXISTS categoria (
+    idCategoria INT AUTO_INCREMENT PRIMARY KEY,
+    idEmpresa INT NOT NULL,
+    nombreCategoria VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(200) NULL,
+    isActivo BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (idEmpresa) REFERENCES empresa(idEmpresa)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS producto (
     idProducto INT AUTO_INCREMENT PRIMARY KEY,
     idEmpresa INT NOT NULL,
+    idCategoria INT NULL,
     codigoBarras VARCHAR(50) NOT NULL UNIQUE,
     nombreProducto VARCHAR(150) NOT NULL,
     precioVenta DECIMAL(12,2) NOT NULL,
     porcentajeIgv DECIMAL(5,2) NOT NULL DEFAULT 18.00,
     isActivo BOOLEAN NOT NULL DEFAULT TRUE,
-    FOREIGN KEY (idEmpresa) REFERENCES empresa(idEmpresa)
+    FOREIGN KEY (idEmpresa) REFERENCES empresa(idEmpresa),
+    CONSTRAINT fk_producto_categoria FOREIGN KEY (idCategoria) REFERENCES categoria(idCategoria)
 ) ENGINE=InnoDB;
 
-CREATE TABLE inventarioubicacion (
+CREATE TABLE IF NOT EXISTS inventarioubicacion (
     idInventario INT AUTO_INCREMENT PRIMARY KEY,
     idUbicacion INT NOT NULL,
     idProducto INT NOT NULL,
@@ -111,11 +119,7 @@ CREATE TABLE inventarioubicacion (
     FOREIGN KEY (idProducto) REFERENCES producto(idProducto)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 4: TRAZABILIDAD (KARDEX)
--- ============================================================================
-
-CREATE TABLE movimientoinventario (
+CREATE TABLE IF NOT EXISTS movimientoinventario (
     idMovimiento INT AUTO_INCREMENT PRIMARY KEY,
     idUbicacion INT NOT NULL,
     idProducto INT NOT NULL,
@@ -139,18 +143,15 @@ CREATE TABLE movimientoinventario (
     FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 5: ENTIDADES DE CLIENTES (PADRE-HIJO)
--- ============================================================================
-
-CREATE TABLE cliente (
+CREATE TABLE IF NOT EXISTS cliente (
     idCliente INT AUTO_INCREMENT PRIMARY KEY,
     tipoCliente ENUM('PERSONA', 'EMPRESA') NOT NULL,
     telefono VARCHAR(20) NULL,
-    correoElectronico VARCHAR(150) NULL
+    correoElectronico VARCHAR(150) NULL,
+    isActivo BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB;
 
-CREATE TABLE persona (
+CREATE TABLE IF NOT EXISTS persona (
     idCliente INT PRIMARY KEY,
     documentoIdentidad VARCHAR(12) NOT NULL UNIQUE,
     nombres VARCHAR(100) NOT NULL,
@@ -158,7 +159,7 @@ CREATE TABLE persona (
     FOREIGN KEY (idCliente) REFERENCES cliente(idCliente) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE empresacliente (
+CREATE TABLE IF NOT EXISTS empresacliente (
     idCliente INT PRIMARY KEY,
     identificacionFiscal VARCHAR(11) NOT NULL UNIQUE,
     razonSocial VARCHAR(150) NOT NULL,
@@ -166,17 +167,13 @@ CREATE TABLE empresacliente (
     FOREIGN KEY (idCliente) REFERENCES cliente(idCliente) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 6: VENTAS Y FACTURACIÓN
--- ============================================================================
-
-CREATE TABLE metodopago (
+CREATE TABLE IF NOT EXISTS metodopago (
     idMetodoPago INT AUTO_INCREMENT PRIMARY KEY,
     nombreMetodo VARCHAR(50) NOT NULL UNIQUE,
     isActivo BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB;
 
-CREATE TABLE venta (
+CREATE TABLE IF NOT EXISTS venta (
     idVenta INT AUTO_INCREMENT PRIMARY KEY,
     idUbicacion INT NOT NULL,
     idUsuario INT NOT NULL,
@@ -193,7 +190,7 @@ CREATE TABLE venta (
     FOREIGN KEY (idMetodoPago) REFERENCES metodopago(idMetodoPago)
 ) ENGINE=InnoDB;
 
-CREATE TABLE detalleventa (
+CREATE TABLE IF NOT EXISTS detalleventa (
     idDetalleVenta INT AUTO_INCREMENT PRIMARY KEY,
     idVenta INT NOT NULL,
     idProducto INT NOT NULL,
@@ -207,11 +204,7 @@ CREATE TABLE detalleventa (
     FOREIGN KEY (idProducto) REFERENCES producto(idProducto)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 7: ABASTECIMIENTO EXTERNO (PROVEEDORES)
--- ============================================================================
-
-CREATE TABLE ordencompra (
+CREATE TABLE IF NOT EXISTS ordencompra (
     idOrdenCompra INT AUTO_INCREMENT PRIMARY KEY,
     idProveedor INT NOT NULL,
     idUbicacionDestino INT NOT NULL,
@@ -229,7 +222,7 @@ CREATE TABLE ordencompra (
     FOREIGN KEY (idUsuarioReceptor) REFERENCES usuario(idUsuario)
 ) ENGINE=InnoDB;
 
-CREATE TABLE detalleordencompra (
+CREATE TABLE IF NOT EXISTS detalleordencompra (
     idDetalleOrden INT AUTO_INCREMENT PRIMARY KEY,
     idOrdenCompra INT NOT NULL,
     idProducto INT NOT NULL,
@@ -242,14 +235,7 @@ CREATE TABLE detalleordencompra (
     FOREIGN KEY (idProducto) REFERENCES producto(idProducto)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 8: LOGÍSTICA INTERNA (REPOSICIONES)
--- 7 ESTADOS (Plan A pregunta 1):
---   ENVIADO → EN_REVISION → ACEPTADO → EN_TRANSITO → RECIBIDA | RECHAZADA
---   En cualquier momento antes de ACEPTADO → CANCELADA (vía CU-09)
--- ============================================================================
-
-CREATE TABLE solicitudreposicion (
+CREATE TABLE IF NOT EXISTS solicitudreposicion (
     idSolicitud INT AUTO_INCREMENT PRIMARY KEY,
     idUbicacionOrigen INT NOT NULL,
     idUbicacionDestino INT NOT NULL,
@@ -259,7 +245,6 @@ CREATE TABLE solicitudreposicion (
     fechaSolicitud DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fechaDespacho DATETIME NULL,
     fechaRecepcion DATETIME NULL,
-    -- Plan A: 7 estados
     estado ENUM(
         'ENVIADO',
         'EN_REVISION',
@@ -278,7 +263,7 @@ CREATE TABLE solicitudreposicion (
     FOREIGN KEY (idUsuarioReceptor) REFERENCES usuario(idUsuario)
 ) ENGINE=InnoDB;
 
-CREATE TABLE detallesolicitudreposicion (
+CREATE TABLE IF NOT EXISTS detallesolicitudreposicion (
     idDetalleSolicitud INT AUTO_INCREMENT PRIMARY KEY,
     idSolicitud INT NOT NULL,
     idProducto INT NOT NULL,
@@ -290,11 +275,7 @@ CREATE TABLE detallesolicitudreposicion (
     FOREIGN KEY (idProducto) REFERENCES producto(idProducto)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 9: ALERTAS DE STOCK (NUEVO — para CU-07)
--- ============================================================================
-
-CREATE TABLE alertastock (
+CREATE TABLE IF NOT EXISTS alertastock (
     idAlerta INT AUTO_INCREMENT PRIMARY KEY,
     idUbicacion INT NOT NULL,
     idProducto INT NOT NULL,
@@ -308,22 +289,7 @@ CREATE TABLE alertastock (
     FOREIGN KEY (idProducto) REFERENCES producto(idProducto)
 ) ENGINE=InnoDB;
 
--- ============================================================================
--- MÓDULO 10: CATEGORÍAS DE PRODUCTOS (NUEVO — wizard crea "General")
--- ============================================================================
 
-CREATE TABLE categoria (
-    idCategoria INT AUTO_INCREMENT PRIMARY KEY,
-    idEmpresa INT NOT NULL,
-    nombreCategoria VARCHAR(100) NOT NULL,
-    descripcion VARCHAR(200) NULL,
-    isActivo BOOLEAN NOT NULL DEFAULT TRUE,
-    FOREIGN KEY (idEmpresa) REFERENCES empresa(idEmpresa)
-) ENGINE=InnoDB;
-
--- ============================================================================
--- ÍNDICES RECOMENDADOS
--- ============================================================================
 
 CREATE INDEX idx_inventario_ubicacion ON inventarioubicacion(idUbicacion);
 CREATE INDEX idx_inventario_producto   ON inventarioubicacion(idProducto);
@@ -337,4 +303,6 @@ CREATE INDEX idx_ordencompra_estado    ON ordencompra(estado);
 CREATE INDEX idx_alerta_ubicacion      ON alertastock(idUbicacion);
 CREATE INDEX idx_alerta_estado         ON alertastock(estado);
 CREATE INDEX idx_usuario_correo        ON usuario(correoElectronico);
+CREATE INDEX idx_sesion_usuario        ON sesionusuario(idUsuario);
+CREATE INDEX idx_sesion_token          ON sesionusuario(tokenId);
 CREATE INDEX idx_producto_codigo       ON producto(codigoBarras);
